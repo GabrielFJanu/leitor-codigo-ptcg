@@ -19,11 +19,11 @@ model_path_digits = r"C:/Users/Gabriel/Desktop/Trabalho de Deep Learning/pipelin
 
 source = 0
 conf_thr_seg = 0.5
-conf_thr_digits = 0.25
+conf_thr_digits = 0.5
 imgsz_seg = 448
 imgsz_digits = 640
 show_size = (840, 560)
-crop_size = (400, 250)
+crop_size = (400, 250)  # (largura, altura) do CROP INDIVIDUAL (antes/depois)
 
 # =====================================================
 # === CORES ALEATÓRIAS PARA 25 CLASSES ===============
@@ -131,12 +131,36 @@ while True:
             rect = cv2.minAreaRect(pts)
             box = cv2.boxPoints(rect).astype(int)
 
-            # Desenha a carta na imagem principal
+            # ================== MÁSCARA DA CARTA NO FRAME ==================
+            # converte pontos do polígono para int
+            pts_int = pts.astype(np.int32)
+
+            # cria overlay para desenhar a máscara semi-transparente
+            overlay = display.copy()
+            mask_color = (255, 200, 30)  # verde, pode trocar se quiser
+            cv2.fillPoly(overlay, [pts_int], mask_color)
+
+            alpha = 0.35  # transparência da máscara
+            display = cv2.addWeighted(overlay, alpha, display, 1 - alpha, 0)
+
+            # borda da carta (retângulo mínimo) por cima da máscara
             cv2.polylines(display, [box], True, (255, 0, 0), 2)
 
+            # ================== CROP DA CARTA ==================
             crop = crop_min_area_rect(frame, rect)
             if crop.size == 0:
                 continue
+
+            # =================================================
+            # CROP ANTES (SEM PROCESSAMENTO)
+            # =================================================
+            crop_before = cv2.resize(crop, crop_size)
+            cv2.putText(
+                crop_before, "Antes",
+                (10, 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (255, 255, 255), 2, cv2.LINE_AA
+            )
 
             # =================================================
             # ORIENTATION NET
@@ -161,9 +185,11 @@ while True:
                 corrected = crop
 
             # =================================================
-            # YOLO DÍGITOS NO CROP CORRIGIDO
+            # YOLO DÍGITOS NO CROP CORRIGIDO (APENAS AQUI)
             # =================================================
-            digit_results = yolo_digits(corrected, conf=conf_thr_digits, imgsz=imgsz_digits, iou=0.7, verbose=False)
+            digit_results = yolo_digits(
+                corrected, conf=conf_thr_digits, imgsz=imgsz_digits, iou=0.7, verbose=False
+            )
             dr = digit_results[0]
 
             code_str = ""  # string final do código lido
@@ -181,7 +207,7 @@ while True:
                 for (x1, y1, x2, y2), cid in zip(xyxy, cls_ids):
                     color = colors[cid % NUM_CLASSES]
 
-                    # desenha bbox no crop corrigido
+                    # desenha bbox no CROP CORRIGIDO (NÃO NO DE CIMA)
                     cv2.rectangle(corrected, (x1, y1), (x2, y2), color, 2)
 
                     if isinstance(names, dict):
@@ -206,7 +232,7 @@ while True:
                 digit_items.sort(key=lambda t: t[0])
                 code_str = "".join(ch for _, ch in digit_items)
 
-                # opcional: também escreve o código no crop corrigido (embaixo)
+                # escreve o código no crop corrigido (embaixo)
                 if code_str:
                     cv2.putText(
                         corrected, code_str,
@@ -216,17 +242,37 @@ while True:
                     )
 
             print(f"SEG: {seg_ms:.2f} ms | CLS: {cls_ms:.2f} ms")
-            crops.append(corrected)
+
+            # =================================================
+            # MONTAR PAINEL: CIMA = ANTES | BAIXO = DEPOIS
+            # =================================================
+            crop_after = cv2.resize(corrected, crop_size)
+            cv2.putText(
+                crop_after, "Depois",
+                (10, 25),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.7, (255, 255, 255), 2, cv2.LINE_AA
+            )
+
+            panel = np.vstack([crop_before, crop_after])
+            crops.append(panel)
 
     frame_total_ms = (time.time() - frame_start) * 1000
     print(f"FRAME TOTAL: {frame_total_ms:.2f} ms")
 
     cv2.imshow("YOLO11 SEG + OrientationNet", cv2.resize(display, show_size))
 
+    # =================================================
+    # JANELA DOS CROPS (ANTES / DEPOIS)
+    # =================================================
     if crops:
-        cv2.imshow("Crops Corrigidos", np.hstack([cv2.resize(c, crop_size) for c in crops]))
+        # cada item de crops já é painel 2x mais alto; empilha lado a lado
+        crop_panel = np.hstack(crops)
+        cv2.imshow("Crops Corrigidos", crop_panel)
     else:
-        cv2.imshow("Crops Corrigidos", np.zeros((crop_size[1], crop_size[0], 3), dtype=np.uint8))
+        # janela vazia: altura = 2 * crop_size[1] (duas linhas)
+        empty = np.zeros((2 * crop_size[1], crop_size[0], 3), dtype=np.uint8)
+        cv2.imshow("Crops Corrigidos", empty)
 
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
