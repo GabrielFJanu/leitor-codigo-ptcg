@@ -13,9 +13,9 @@ import random
 # =====================================================
 # === CONFIGURAÇÕES GERAIS ============================
 # =====================================================
-model_path_yolo = r"C:/Users/Gabriel/Desktop/Trabalho de Deep Learning/pipeline v2/1 YOLO11 seg carta/runs/segment/train/weights/best.pt"
-model_path_orientation = r"C:/Users/Gabriel/Desktop/Trabalho de Deep Learning/pipeline v2/2 PyTorch cls/orientationnet_best.pth"
-model_path_digits = r"C:/Users/Gabriel/Desktop/Trabalho de Deep Learning/pipeline v2/3 YOLO11 det dígitos/runs/detect/train/weights/best.pt"
+model_path_yolo = r"weights/yolo11seg_best.pt"
+model_path_orientation = r"weights/orientationnet_best.pth"
+model_path_digits = r"weights/yolo11det_best.pt"
 
 source = 0
 conf_thr_seg = 0.5
