@@ -1,4 +1,4 @@
-**Leitor de carta código de Pokemon Trading Card Game**
+# Leitor de carta código de Pokemon Trading Card Game
 
 Projeto de Visão Computacional para **automatizar** a leitura de códigos de cartas pokemon.
 O código e os modelos de visão computacional foram desenvolvido para o **projeto final** da disciplina de **Aprendizado Profundo**.
